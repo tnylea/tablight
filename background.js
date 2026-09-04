@@ -143,7 +143,58 @@ const status = {
   lastCaptureAt: 0,
   attempts: 0,
   warming: false,
+  // false once we've confirmed the spotlight command has a key bound; true
+  // when Chrome couldn't assign the suggested one (usually because another
+  // installed extension already owns it — Chrome never auto-assigns a taken
+  // key and never retries on update). There is no API to bind it ourselves.
+  shortcutMissing: false,
 };
+const SPOTLIGHT_COMMAND = 'toggle-spotlight';
+const SHORTCUTS_PAGE = 'chrome://extensions/shortcuts';
+
+async function checkShortcut() {
+  try {
+    const cmds = await chrome.commands.getAll();
+    const cmd = cmds.find((c) => c.name === SPOTLIGHT_COMMAND);
+    const missing = !cmd || !cmd.shortcut;
+    if (missing !== status.shortcutMissing) publishStatus({ shortcutMissing: missing });
+    return missing;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Open the one-time setup page when the shortcut isn't bound. Remembered in
+// storage.local so a reload/update doesn't keep re-opening it; the side panel
+// keeps showing a notice until the key is actually set.
+async function promptForShortcut() {
+  if (!(await checkShortcut())) {
+    chrome.storage.local.remove('shortcutPrompted').catch(() => {});
+    return;
+  }
+  try {
+    const { shortcutPrompted } = await chrome.storage.local.get('shortcutPrompted');
+    if (shortcutPrompted) return;
+    await chrome.storage.local.set({ shortcutPrompted: Date.now() });
+    await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+  } catch (e) {
+    // No window to open in (e.g. headless startup) — the side panel notice remains.
+  }
+}
+
+// Favicons must never be loaded from the tab's own host inside another page:
+// the spotlight overlay lives in the current page, so an <img> pointing at a
+// local dev site (foo.test → 127.0.0.1) makes *that page* hit the local
+// network and Chrome shows the "wants to access other apps and services on
+// this device" prompt over the spotlight. Chrome's favicon service serves
+// the cached icon from our own extension origin instead.
+function faviconFor(tab) {
+  const fav = tab.favIconUrl || '';
+  if (!fav) return '';
+  if (/^data:/.test(fav)) return fav;
+  if (!tab.url) return '';
+  return chrome.runtime.getURL('/_favicon/?pageUrl=' + encodeURIComponent(tab.url) + '&size=32');
+}
 
 function hydrate() {
   if (!hydrated) {
@@ -1003,12 +1054,17 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
   captureFocusedWindow();
   injectIntoExistingTabs().then(() => setTimeout(sweepMissingThumbs, 1500));
+  // Chrome binds the suggested key only at install and only if it's free;
+  // give it a beat to settle, then check and guide the user if it isn't.
+  setTimeout(promptForShortcut, 800);
 });
 chrome.runtime.onStartup.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
   captureFocusedWindow();
   setTimeout(sweepMissingThumbs, 3000);
+  setTimeout(checkShortcut, 1000);
 });
+checkShortcut();
 
 chrome.tabs.onActivated.addListener((info) => {
   if (warmup && info.tabId === warmup.expectTabId) return; // our own switch
@@ -1065,7 +1121,7 @@ async function buildSpotlightPayload(activeTabId, incognito) {
     windowId: t.windowId,
     title: t.title || t.url || 'Untitled',
     url: t.url || '',
-    favIconUrl: t.favIconUrl || '',
+    favIconUrl: faviconFor(t),
   }));
   // The current tab is shown too (first, as the "you are here" card).
   const eager = list.slice(0, SPOTLIGHT_EAGER_THUMBS).map((t) => t.id);
@@ -1245,8 +1301,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'get-status') {
     (async () => {
       await hydrate();
+      await checkShortcut();
       sendResponse(statusSnapshot());
     })();
+    return true;
+  }
+
+  if (msg.type === 'open-shortcuts') {
+    // UI contexts can't open chrome:// URLs themselves.
+    chrome.tabs.create({ url: SHORTCUTS_PAGE }).then(
+      () => sendResponse({ ok: true }),
+      () => sendResponse({ ok: false })
+    );
     return true;
   }
 

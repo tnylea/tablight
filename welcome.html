@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Set up your shortcut · Tab Thumbnails & Spotlight</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f6f8; --surface: #ffffff; --text: #0f1218;
+      --text-dim: rgba(15, 18, 24, 0.62); --accent: #3b82f6; --ok: #12805c;
+      --border: rgba(16, 24, 40, 0.08); --key-bg: #ffffff; --key-border: rgba(16, 24, 40, 0.14);
+      --shadow: 0 0 0 1px rgba(16, 24, 40, 0.05), 0 12px 32px -12px rgba(16, 24, 40, 0.25);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #131318; --surface: #1c1d24; --text: #f2f2f5;
+        --text-dim: rgba(242, 242, 245, 0.62); --ok: #4ade80;
+        --border: rgba(255, 255, 255, 0.08); --key-bg: rgba(255, 255, 255, 0.07); --key-border: rgba(255, 255, 255, 0.16);
+        --shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px;
+      background: var(--bg); color: var(--text);
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    }
+    .card {
+      width: min(520px, 100%); background: var(--surface); border-radius: 18px; padding: 32px;
+      box-shadow: var(--shadow);
+    }
+    h1 { font-size: 22px; letter-spacing: -0.01em; margin: 0 0 8px; }
+    p { margin: 0 0 14px; color: var(--text-dim); }
+    kbd {
+      display: inline-block; padding: 2px 8px; border-radius: 6px; font: 600 13px/1.6 inherit;
+      background: var(--key-bg); border: 1px solid var(--key-border); color: var(--text);
+    }
+    ol { margin: 0 0 20px; padding-left: 22px; color: var(--text-dim); }
+    li { margin-bottom: 6px; }
+    li b { color: var(--text); font-weight: 600; }
+    .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    button {
+      appearance: none; border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer;
+      background: var(--accent); color: #fff; font: 600 14px/1 inherit;
+    }
+    button:hover { filter: brightness(1.06); }
+    .state { font-size: 13px; color: var(--text-dim); }
+    .state.ok { color: var(--ok); font-weight: 600; }
+    #done { display: none; }
+    body.ready #setup { display: none; }
+    body.ready #done { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="setup">
+      <h1>One more step: set the shortcut</h1>
+      <p>
+        Chrome couldn't assign <kbd id="combo">⌘⇧Space</kbd> to the spotlight tab switcher automatically.
+        That usually means another installed extension already uses that key. Chrome doesn't let
+        extensions bind shortcuts themselves, so it takes a few seconds by hand:
+      </p>
+      <ol>
+        <li>Click <b>Open shortcut settings</b> below.</li>
+        <li>Find <b>Tab Thumbnails &amp; Spotlight</b> → <b>Toggle the tab spotlight switcher</b>.</li>
+        <li>Click the box and press <kbd class="combo">⌘⇧Space</kbd>. Chrome will move it over from the other extension.</li>
+      </ol>
+      <div class="actions">
+        <button id="open" type="button">Open shortcut settings</button>
+        <span class="state" id="state">Waiting for the shortcut…</span>
+      </div>
+    </div>
+    <div id="done">
+      <h1>You're all set</h1>
+      <p><kbd class="combo">⌘⇧Space</kbd> now opens the spotlight tab switcher. Press it again, or <kbd>Space</kbd>, to bounce back to your previous tab. You can close this page.</p>
+    </div>
+  </div>
+  <script src="welcome.js"></script>
+</body>
+</html>

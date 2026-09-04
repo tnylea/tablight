@@ -355,8 +355,22 @@
     }
   }
 
+  // Favicons are either inline data: URLs or served by Chrome's favicon
+  // service from our own extension origin (see faviconFor in background.js).
+  // Never a page-host URL: the overlay lives inside another site's page, and
+  // an <img> pointing at a local dev host would trigger Chrome's local
+  // network access prompt for *that* site.
+  const FAVICON_BASE = (() => {
+    try {
+      return chrome.runtime.getURL('/_favicon/');
+    } catch (e) {
+      return '';
+    }
+  })();
   function isSafeFavicon(url) {
-    return typeof url === 'string' && /^(https|data):/.test(url);
+    if (typeof url !== 'string') return false;
+    if (/^data:/.test(url)) return true;
+    return !!FAVICON_BASE && url.startsWith(FAVICON_BASE);
   }
 
 

@@ -130,6 +130,8 @@ body {
   :root:not([data-theme="light"]) .notice.error { color: #fda29b; }
 }
 .notice b { font-weight: 600; color: var(--text); }
+.notice a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.notice a:hover { text-decoration: underline; }
 .header-count {
   font-size: 11.5px;
   color: var(--text-faint);

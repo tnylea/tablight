@@ -48,8 +48,15 @@
     }
   }
 
-  function isSafeFavicon(url) {
-    return typeof url === 'string' && /^(https|data):/.test(url);
+  // Favicons come from Chrome's favicon service (our own origin) or are
+  // inline data: URLs — never fetched from the tab's host, which would hit
+  // the local network for dev sites and trigger Chrome's permission prompt.
+  function faviconFor(tab) {
+    const fav = tab.favIconUrl || '';
+    if (!fav) return '';
+    if (/^data:/.test(fav)) return fav;
+    if (!tab.url) return '';
+    return chrome.runtime.getURL('/_favicon/?pageUrl=' + encodeURIComponent(tab.url) + '&size=32');
   }
 
   function urlKey(url) {
@@ -240,8 +247,9 @@
     const title = tab.title || tab.url || 'Untitled';
     if (entry.titleEl.textContent !== title) entry.titleEl.textContent = title;
 
-    if (isSafeFavicon(tab.favIconUrl)) {
-      if (entry.favEl.getAttribute('src') !== tab.favIconUrl) entry.favEl.src = tab.favIconUrl;
+    const favUrl = faviconFor(tab);
+    if (favUrl) {
+      if (entry.favEl.getAttribute('src') !== favUrl) entry.favEl.src = favUrl;
       entry.favEl.hidden = false;
     } else {
       entry.favEl.hidden = true;
@@ -270,7 +278,7 @@
       // Placeholder content depends on url, favicon and site colour, which
       // change as a new tab navigates — re-render whenever those differ.
       const host = hostname(entry.tab.url);
-      const fav = isSafeFavicon(entry.tab.favIconUrl) ? entry.tab.favIconUrl : '';
+      const fav = faviconFor(entry.tab);
       const color = siteColor(entry.tab.id);
       const key = host + '\n' + fav + '\n' + color;
       if (entry.data === null && entry.phKey === key) return;
@@ -292,10 +300,10 @@
         ph.style.setProperty('--site', color);
       }
       const chip = el('div', 'placeholder-chip', ph);
-      if (isSafeFavicon(entry.tab.favIconUrl)) {
-        const fav = el('img', '', chip);
-        fav.src = entry.tab.favIconUrl;
-        fav.alt = '';
+      if (fav) {
+        const favImg = el('img', '', chip);
+        favImg.src = fav;
+        favImg.alt = '';
       } else {
         chip.textContent = (host || '?').charAt(0).toUpperCase();
       }
@@ -344,11 +352,28 @@
         ' Try reloading the extension from chrome://extensions.';
     } else if (st.warming) {
       html = 'Capturing tabs that have no screenshot yet — this switches through them briefly.';
+    } else if (st.shortcutMissing) {
+      html =
+        '<b>Keyboard shortcut not set.</b> Chrome couldn\'t assign ' +
+        escapeHtml(shortcutLabel()) +
+        ' — another extension probably uses it. ' +
+        '<a href="#" data-action="open-shortcuts">Set it in Chrome\'s shortcut settings</a>.';
     }
     noticeEl.classList.toggle('error', error);
     noticeEl.innerHTML = html;
     noticeEl.hidden = !html;
   }
+
+  function shortcutLabel() {
+    return /Mac|iP(hone|ad|od)/.test(navigator.platform) ? '⌘⇧Space' : 'Ctrl+Shift+Space';
+  }
+
+  noticeEl.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-action="open-shortcuts"]');
+    if (!link) return;
+    e.preventDefault();
+    send({ type: 'open-shortcuts' });
+  });
 
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

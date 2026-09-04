@@ -3,7 +3,7 @@
   "name": "Tab Thumbnails & Spotlight",
   "version": "1.0.0",
   "description": "Vertical tab list with live thumbnails in the side panel, plus a spotlight tab switcher (Cmd+Shift+Space) with fuzzy search.",
-  "permissions": ["tabs", "activeTab", "storage", "unlimitedStorage", "sidePanel", "scripting", "idle"],
+  "permissions": ["tabs", "activeTab", "storage", "unlimitedStorage", "sidePanel", "scripting", "idle", "favicon"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -23,6 +23,12 @@
       "description": "Toggle the tab spotlight switcher"
     }
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["_favicon/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
